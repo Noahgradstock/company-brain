@@ -3,7 +3,9 @@ import type { Fact } from "@/trust-engine";
 // Gemini only maps a free-text question to one known topic. It never scores: the trust engine
 // stays deterministic. Returns null (keyword fallback) when no key is set or the call fails.
 // Fastest first: routing to one of a few topics is an easy task.
-const MODELS = ["gemini-3.1-flash-lite", "gemini-3.7-flash"];
+// gemini-3.1-flash-lite took 5-16 s on the free tier and answered "none" to Dutch/French questions;
+// 3.5-flash-lite answers correctly in ~2 s. 3.7-flash was dropped as fallback: it was overloaded (503).
+const MODELS = ["gemini-3.5-flash-lite", "gemini-flash-lite-latest"];
 const cache = new Map<string, string | null>();
 
 export async function matchFactWithGemini(question: string, facts: Fact[]): Promise<string | null> {
@@ -28,6 +30,9 @@ export async function matchFactWithGemini(question: string, facts: Fact[]): Prom
         model,
         system_instruction: system,
         input,
+        // Picking a topic needs no reasoning. Default thinking took 8-16 s on the free tier and
+        // blew the 6 s timeout; minimal answers the same in 2-4 s.
+        generation_config: { thinking_level: "minimal" },
         response_format: { type: "text", mime_type: "application/json", schema },
       }),
     });
